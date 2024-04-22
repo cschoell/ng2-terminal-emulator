@@ -168,16 +168,25 @@ export class ScrollDirective implements OnInit {
     const el = this.el;
 
     if (isWheel) {
-      delta = parseInt(getComputedStyle(bar).bottom, 10) + y * 20 / 100 * bar.offsetHeight;
+      if (y > 0) {
+        el.scrollTop = el.scrollTop + 40;
+      }
+      if (y < 0) {
+        el.scrollTop = el.scrollTop - 40;
+      }
+
+
+      delta = parseInt(getComputedStyle(bar).bottom, 10) + (el.scrollTop * (20 / 100));
+
       delta = Math.min(Math.max(delta, 0), maxTop);
-      delta = (y > 0) ? Math.ceil(delta) : Math.floor(delta);
+      delta = (y < 0) ? Math.ceil(delta) : Math.floor(delta);
+
       this.renderer.setStyle(bar, 'top', delta + 'px');
+    } else {
+      percentScroll = parseInt(getComputedStyle(bar).top, 10) / (el.offsetHeight - bar.offsetHeight);
+      delta = percentScroll * (el.scrollHeight - el.offsetHeight);
+      el.scrollTop = delta;
     }
-
-    percentScroll = parseInt(getComputedStyle(bar).top, 10) / (el.offsetHeight - bar.offsetHeight);
-    delta = percentScroll * (el.scrollHeight - el.offsetHeight);
-
-    el.scrollTop = delta;
   }
 
   private makeBarDraggable = () => {
@@ -211,7 +220,7 @@ export class ScrollDirective implements OnInit {
   private barDraggableListener = (e: MouseEvent) => {
     const top = this.top + e.pageY - this.pageY;
     this.renderer.setStyle(this.bar, 'top', `${top}px`);
-    this.scrollContent(0, true, false);
+    this.scrollContent(0, false, false);
   };
 
   private destroy(): void {

@@ -11,6 +11,7 @@
     "noImplicitReturns": false,
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "strictNullChecks": false,
     "declaration": false,
