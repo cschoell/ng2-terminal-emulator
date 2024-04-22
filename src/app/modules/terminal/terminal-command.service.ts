@@ -1,5 +1,5 @@
-import { Injectable } from "@angular/core";
-import {TerminalService} from "./terminal.service";
+import { Injectable } from '@angular/core';
+import {TerminalService} from './terminal.service';
 
 @Injectable()
 export class TerminalCommandService {
@@ -8,9 +8,9 @@ export class TerminalCommandService {
     this.terminalService = terminalService;
   }
 
-  public interpret(cmd:any) {
-    let prompt = this.terminalService.getPrompt();
-    if (cmd.command == 'help') {
+  public interpret(cmd: any) {
+    const prompt = this.terminalService.getPrompt();
+    if (cmd.command === 'help') {
       this.terminalService.broadcast('terminal-output', {
         output: true,
         text: [prompt.text + cmd.command,

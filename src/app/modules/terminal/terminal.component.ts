@@ -1,10 +1,9 @@
 import {
   Component, OnInit, OnDestroy, DoCheck, ElementRef, ViewChild
 } from '@angular/core';
-import {TerminalService} from "./terminal.service";
-import Timer = NodeJS.Timer;
-import {ISlimScrollOptions} from "ng2-slimscroll/src/directives/slimscroll.directive";
-import {TerminalCommandService} from "./terminal-command.service";
+import {TerminalService} from './terminal.service';
+import {TerminalCommandService} from './terminal-command.service';
+import {ISlimScrollOptions} from 'ngx-slimscroll';
 
 @Component({
     selector: 'terminal',
@@ -12,33 +11,56 @@ import {TerminalCommandService} from "./terminal-command.service";
     styleUrls: ['terminal.css']
 })
 
-export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
+export class TerminalComponent implements OnInit, OnDestroy, DoCheck {
+
     commandLine: string;
     results: any = [];
-    showPrompt: boolean = true;
-    terminalCursor: string = '_';
-    prompt:any;
-    private re:any;
+    showPrompt = true;
+    terminalCursor = '_';
+    prompt: any;
+    private re: any;
     private config: any;
     private commandHistory: any = [];
-    private commandIndex:number = -1;
-    private outputDelay:any;
-    private allowTypingWriteDisplaying:boolean;
-    private disposableTerminalOutputObserver:any;
-    private disposableTerminalCommandObserver:any;
-    terminalService:TerminalService;
-    private initial: boolean = true;
-    private mouseOver: boolean = false;
-    private hasFocus: Timer;
-    private audioContext: AudioContext;
-    private loadingSample: boolean = false;
-    private audioBuffer: AudioBuffer;
-    private scrollOpts: ISlimScrollOptions;
-    private previousLength:number = 0;
-    @ViewChild('terminal') terminal:ElementRef;
-    @ViewChild('terminalResults') terminalResults:ElementRef;
-    @ViewChild('terminalTarget') terminalTarget:ElementRef;
-    @ViewChild('terminalViewport') terminalViewport:ElementRef;
+    private commandIndex = -1;
+    private outputDelay: any;
+    private allowTypingWriteDisplaying: boolean;
+    private disposableTerminalOutputObserver: any;
+    private disposableTerminalCommandObserver: any;
+    terminalService: TerminalService;
+    private initial = true;
+    private mouseOver = false;
+    private hasFocus: any;
+    private audioContext: AudioContext | undefined;
+    private loadingSample = false;
+    private audioBuffer: AudioBuffer | undefined;
+    public scrollOpts: ISlimScrollOptions;
+    private previousLength = 0;
+    @ViewChild('terminal') terminal: ElementRef | undefined;
+    @ViewChild('terminalResults') terminalResults: ElementRef | undefined;
+    @ViewChild('terminalTarget') terminalTarget: ElementRef | undefined;
+    @ViewChild('terminalViewport') terminalViewport: ElementRef | undefined;
+
+    // adds \n to all strings that need formatting at index of string
+    // todo function is not able to break line twice in case the remaining string is still longer than
+    // todo screen -> but it would be best this does not happen -> maybe require min width of terminal div
+    static insertLineBreakToString(width: number, text: string, chr: string) {
+      const index = Math.round(width / 8);
+      if (text.length > index) {
+        // returns text with linebreak chr added at element witdh offset ratio
+        return text.substr(0, index) + chr + text.substr(index + 1);
+      } else {
+        return text;
+      }
+    }
+
+    static clearTerminalResultsChildElements() {
+      const elements = document.getElementById('terminalResults');
+      if (elements) {
+        while (elements.firstChild) {
+          elements.removeChild(elements.firstChild);
+        }
+      }
+    }
     constructor(terminalService: TerminalService, terminalCommandService: TerminalCommandService) {
       this.scrollOpts = {
         position: 'right',
@@ -59,16 +81,16 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
       this.prompt = terminalService.prompt(this.config);
       this.outputDelay = this.config.outputDelay;
       this.allowTypingWriteDisplaying = this.config.allowTypingWriteDisplaying;
-      let obsTerminalOutput = terminalService.on<any>('terminal-output');
+      const obsTerminalOutput = terminalService.on<any>('terminal-output');
       this.disposableTerminalOutputObserver = obsTerminalOutput.subscribe(termOut => {
         if (!termOut.added) {
           termOut.added = true;
           this.results.push(termOut);
         }
       });
-      let obsTerminalCommand = terminalService.on<any>('terminal-command');
+      const obsTerminalCommand = terminalService.on<any>('terminal-command');
       this.disposableTerminalCommandObserver = obsTerminalCommand.subscribe(cmd => {
-        if (cmd.command == 'clear') {
+        if (cmd.command === 'clear') {
           this.results.splice(0, this.results.length);
           TerminalComponent.clearTerminalResultsChildElements();
         }
@@ -100,15 +122,15 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
     }
 
     private addToTerminalResults() {
-      let f = [() => {
-        //the prompt is hidden to the user while input is streaming in
+      const f = [() => {
+        // the prompt is hidden to the user while input is streaming in
         this.showPrompt = true;
         // reset scroll fixed to bottom
         this.terminalViewport.nativeElement.scrollTop = this.terminalViewport.nativeElement.scrollHeight;
       }];
       this.showPrompt = false;
-      let change = this.results[this.results.length - 1];
-      let spanElement = document.createElement('span');
+      const change = this.results[this.results.length - 1];
+      const spanElement = document.createElement('span');
       if (this.outputDelay) {
         // only reverse loop will type out the lines with delay proper and in order
         for (let i = change.text.length - 1; i >= 0; i--) {
@@ -119,57 +141,44 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
           f[f.length - 1]();
         }, 200);
       } else {
-        //paste everything at once
+        // paste everything at once
         for (let i = 0; i < change.text.length; i++) {
           this.createTerminalOutputElement(spanElement, change, i);
         }
         if (change.breakLine) {
-          let breakLine = document.createElement('br');
+          const breakLine = document.createElement('br');
           spanElement.appendChild(breakLine);
         }
       }
     }
 
-    // adds \n to all strings that need formatting at index of string
-    // todo function is not able to break line twice in case the remaining string is still longer than
-    // todo screen -> but it would be best this does not happen -> maybe require min width of terminal div
-    static insertLineBreakToString(width:number, text:string, chr:string) {
-      let index= Math.round(width/8);
-      if (text.length > index) {
-        // returns text with linebreak chr added at element witdh offset ratio
-        return text.substr(0,index) + chr + text.substr(index+1);
-      } else {
-        return text;
-      }
-    }
-
     private createTerminalOutputElement(span: HTMLSpanElement, change: any, i: number) {
-      let lineBr = " -> \n";
-      let {line} = this.createPreElement(change, i, lineBr);
+      const lineBr = ' -> \n';
+      const {line} = this.createPreElement(change, i, lineBr);
       span.appendChild(line);
       this.terminalResults.nativeElement.appendChild(span);
     }
 
     private createTypedTerminalOutputElement(span: HTMLSpanElement, change: any, i: number, f: (() => any)[]) {
-      let lineBr = " -> \n ";
-      let {line, textLine} = this.createPreElement(change, i, lineBr);
+      const lineBr = ' -> \n ';
+      const {line, textLine} = this.createPreElement(change, i, lineBr);
       if (change.output) {
         line.textContent = ' ';
-        let fi = f.length - 1;
-        let wline = line;
-        let wtextLine = textLine;
-        //to call the next f[i] recursively after previous line type has finished
-        let wf = f[fi];
-        let wbreak = i == change.text.length - 1 && change.breakLine;
+        const fi = f.length - 1;
+        const wline = line;
+        const wtextLine = textLine;
+        // to call the next f[i] recursively after previous line type has finished
+        const wf = f[fi];
+        const wbreak = i === change.text.length - 1 && change.breakLine;
         f.push(() => {
-          //initialize empty line to type out
+          // initialize empty line to type out
           span.appendChild(wline);
           this.terminalResults.nativeElement.appendChild(span);
-          //send line to type() so each character gets displayed coupled with a type sound
+          // send line to type() so each character gets displayed coupled with a type sound
           this.type(wline, wtextLine, 0, wf);
           this.terminalViewport.nativeElement.scrollTop = this.terminalViewport.nativeElement.scrollHeight;
           if (wbreak) {
-            let breakLine = document.createElement('br');
+            const breakLine = document.createElement('br');
             span.appendChild(breakLine);
             this.terminalResults.nativeElement.appendChild(span);
           }
@@ -181,25 +190,19 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
       }
     }
 
-    private createPreElement(change: any, i: number, lineBr:string) {
-      let line = document.createElement('pre');
-      if (change.color)
+    private createPreElement(change: any, i: number, lineBr: string) {
+      const line = document.createElement('pre');
+      if (change.color) {
         line.style.color = change.color;
+      }
       line.className = 'terminal-line';
       let textLine: string;
-      let elWidth = this.terminalViewport.nativeElement.firstElementChild.clientWidth;
+      const elWidth = this.terminalViewport.nativeElement.firstElementChild.clientWidth;
       // format -> the stream needs formatting to show with appropriate line breaks on the screen
-      if (change.format)
+      if (change.format) {
         textLine = TerminalComponent.insertLineBreakToString(elWidth, change.text[i], lineBr);
-      else textLine = change.text[i];
+      } else { textLine = change.text[i]; }
       return {line, textLine};
-    }
-
-    static clearTerminalResultsChildElements() {
-      let elements = document.getElementById("terminalResults");
-      while (elements.firstChild) {
-        elements.removeChild(elements.firstChild);
-      }
     }
 
     mouseover() {
@@ -217,67 +220,70 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
 
     blur() {
       clearInterval(this.hasFocus);
-      if (!this.mouseOver)
+      if (!this.mouseOver) {
         this.terminalCursor = '_';
-        this.terminal.nativeElement.classList.toggle('terminal-focused', false);
+      }
+        // @ts-ignore
+      this.terminal.nativeElement.classList.toggle('terminal-focused', false);
     }
 
     focus() {
-      if (this.initial)
+      if (this.initial) {
         this.terminalService.broadcast('terminal-output', {
-          text: ['How can I serve you today master? D1D2D3D4D5D6D7D8D9D0D1D2D3D4D5D6D7D8D9D0D1D2D3D4D5D6D7D8D9D0D1D2D3D4D5D6D7D8D9D0D1D2D3D4D5D6D7D8D9D'],
+          text: [''],
           breakLine: true,
           output: true,
           color: 'red',
           format: true
         });
+      }
         this.initial = false;
 
       this.hasFocus = setInterval(() => {
-        if (this.terminalCursor === '')
+        if (this.terminalCursor === '') {
           this.terminalCursor = '_';
-        else
+        } else {
           this.terminalCursor = '';
+        }
       }, 500);
     }
 
     key(e) {
-      if (this.showPrompt || this.allowTypingWriteDisplaying)
+      if (this.showPrompt || this.allowTypingWriteDisplaying) {
         this.keypress(e.which);
+      }
       e.preventDefault();
     }
 
     keypress(keyCode: number) {
-      if (this.commandLine.length < 80)
+      if (this.commandLine.length < 80) {
         this.commandIndex = -1;
+      }
         this.commandLine += String.fromCharCode(keyCode);
-    };
-
+    }
     keydown(e) {
-      //tab
-      if (e.keyCode == 9) {
+      // tab
+      if (e.keyCode === 9) {
         e.preventDefault();
       }
-      if (e.keyCode == 8) {
-        if (this.showPrompt || this.allowTypingWriteDisplaying)
+      if (e.keyCode === 8) {
+        if (this.showPrompt || this.allowTypingWriteDisplaying) {
           this.backspace();
+        }
         e.preventDefault();
-      }
-      // enter
-      else if (e.keyCode == 13) {
-        if (this.showPrompt || this.allowTypingWriteDisplaying)
+      } else if (e.keyCode === 13) {
+        if (this.showPrompt || this.allowTypingWriteDisplaying) {
           this.execute();
-      }
-      // key-up
-      else if (e.keyCode == 38) {
-        if (this.showPrompt || this.allowTypingWriteDisplaying)
+        }
+      } else if (e.keyCode === 38) {
+        if (this.showPrompt || this.allowTypingWriteDisplaying) {
           this.previousCommand();
+        }
         e.preventDefault();
-      }
-      //key-down
-      else if (e.keyCode == 40) {
-        if (this.showPrompt || this.allowTypingWriteDisplaying)
+      } else if (e.keyCode === 40) {
+        if (this.showPrompt || this.allowTypingWriteDisplaying) {
           this.nextCommand();
+        }
         e.preventDefault();
       }
     }
@@ -289,9 +295,9 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
           if (i < line.length - 1) {
             this.doSound(this.config.typeSoundUrl);
             this.type(input, line, i + 1, endCallback);
-          }
-          else if (endCallback)
+          } else if (endCallback) {
               endCallback();
+ }
       }, this.outputDelay);
     }
 
@@ -303,60 +309,69 @@ export class TerminalComponent implements OnInit, OnDestroy, DoCheck{
       }).catch(error => {throw error});
     }
 
-    loadAudio(source:string): Promise<AudioBuffer> {
+    loadAudio(source: string): Promise<AudioBuffer> {
       return new Promise((resolve, reject) => {
-        this.terminalService.fetch(source).subscribe(buffer =>{
-          this.audioContext.decodeAudioData(buffer, resolve, reject);
+        this.terminalService.fetch(source).subscribe(buffer => {
+          this.audioContext.decodeAudioData(<ArrayBuffer>buffer, resolve, reject);
         });
       });
     }
 
     playAudio() {
-      let bufferSource = this.audioContext.createBufferSource();
+      // @ts-ignore
+      const bufferSource = this.audioContext.createBufferSource();
+      // @ts-ignore
       bufferSource.buffer = this.audioBuffer;
+      // @ts-ignore
       bufferSource.connect(this.audioContext.destination);
       bufferSource.start(0);
     }
 
     handlePaste(e: any) {
         this.commandLine += e.clipboardData.getData('text/plain');
-    };
-
+    }
     previousCommand() {
-        if (this.commandIndex == -1)
+        if (this.commandIndex === -1) {
             this.commandIndex = this.commandHistory.length;
-        if (this.commandIndex == 0)
+        }
+        if (this.commandIndex === 0) {
             return;
+        }
         this.commandLine = this.commandHistory[--this.commandIndex];
     }
 
     nextCommand() {
-        if (this.commandIndex == -1)
+        if (this.commandIndex === -1) {
             return;
-        if (this.commandIndex < this.commandHistory.length - 1)
+        }
+        if (this.commandIndex < this.commandHistory.length - 1) {
             this.commandLine = this.commandHistory[++this.commandIndex];
-        else
+        } else {
             this.commandLine = '';
+        }
     }
 
     cleanNonPrintableCharacters(input: string) {
         return input.replace(this.re, '');
-    };
-
+    }
     execute() {
-        let command = this.cleanNonPrintableCharacters(this.commandLine);
+        const command = this.cleanNonPrintableCharacters(this.commandLine);
         this.commandLine = '';
-        if (!command)
+        if (!command) {
             return;
-        if (this.commandHistory.length > 10)
+        }
+        if (this.commandHistory.length > 10) {
             this.commandHistory.splice(0, 1);
-        if (command != this.commandHistory[this.commandHistory.length - 1])
+        }
+        if (command !== this.commandHistory[this.commandHistory.length - 1]) {
             this.commandHistory.push(command);
+        }
         this.terminalService.broadcast('terminal-command', {command: command});
     }
 
     backspace() {
-        if (this.commandLine)
+        if (this.commandLine) {
           this.commandLine = this.commandLine.substring(0, this.commandLine.length - 1);
+        }
     }
 }
